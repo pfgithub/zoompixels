@@ -43,14 +43,13 @@ function upd() {
     ctx.putImageData(data, 0, 0);
 }
 
-function zoomAnim(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
-    canvasel.style.transformOrigin = {
-        'tl': '0 0',
-        'tr': '100% 0',
-        'bl': '0 100%',
-        'br': '100% 100%',
-        'center': '50% 50%',
-    }[quadrant];
+function zoomAnim(x: number, y: number) {
+    // Convert pixel coordinates to percentages
+    const percentX = (x / canvasel.offsetWidth) * 100;
+    const percentY = (y / canvasel.offsetHeight) * 100;
+    
+    canvasel.style.transformOrigin = `${percentX}% ${percentY}%`;
+    
     const anim = canvasel.animate([
         {transform: "scale(1)"},
         {transform: "scale(2)"},
@@ -59,13 +58,13 @@ function zoomAnim(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
         fill: "both",
     });
     anim.finished.then(() => {
-        zoom(quadrant);
+        zoom(x / canvasel.offsetWidth, y / canvasel.offsetHeight);
         anim.cancel();
         upd();
     });
 }
 
-function zoom(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
+function zoom(relative_x: number, relative_y: number) {
     const old = img.data;
     const old_w = img.w;
     const old_h = img.h;
@@ -73,36 +72,21 @@ function zoom(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
     const new_h = old_h / 2;
     const final = new Float64Array(new_w * new_h * 4);
     
-    // Calculate offsets based on quadrant
-    let offset_x: number, offset_y: number;
-    switch (quadrant) {
-        case 'tl':
-            offset_x = 0;
-            offset_y = 0;
-            break;
-        case 'tr':
-            offset_x = new_w;
-            offset_y = 0;
-            break;
-        case 'bl':
-            offset_x = 0;
-            offset_y = new_h;
-            break;
-        case 'br':
-            offset_x = new_w;
-            offset_y = new_h;
-            break;
-        case 'center':
-            offset_x = new_w / 2;
-            offset_y = new_h / 2;
-            break;
-    }
+    // Calculate offsets based on click position
+    const offset_x = Math.floor(new_w * relative_x);
+    const offset_y = Math.floor(new_h * relative_y);
+    
+    // Clamp offsets to ensure we don't go out of bounds
+    const clamped_offset_x = Math.max(0, Math.min(offset_x, old_w - new_w));
+    const clamped_offset_y = Math.max(0, Math.min(offset_y, old_h - new_h));
+
+    console.log(relative_x, relative_y, offset_x, offset_y, clamped_offset_x, clamped_offset_y)
 
     final.fill(255);
     for(let new_y = 0; new_y < new_h; new_y += 1) {
         for(let new_x = 0; new_x < new_w; new_x += 1) {
-            const old_y = new_y + offset_y;
-            const old_x = new_x + offset_x;
+            const old_y = new_y + clamped_offset_y;
+            const old_x = new_x + clamped_offset_x;
             final[(new_y * new_w + new_x) * 4 + 0] = old[(old_y * old_w + old_x) * 4 + 0];
             final[(new_y * new_w + new_x) * 4 + 1] = old[(old_y * old_w + old_x) * 4 + 1];
             final[(new_y * new_w + new_x) * 4 + 2] = old[(old_y * old_w + old_x) * 4 + 2];
@@ -160,29 +144,24 @@ upd();
 
 canvasholderel.appendChild(canvasel);
 
-// Update the zoom button to use a specific quadrant (for example, center)
-const zmbtn = document.createElement("button");
-zmbtn.textContent = "zoom";
-zmbtn.onclick = () => {
-    zoomAnim('center');
-    upd();
+// Replace the quadrant buttons with canvas click handling
+canvasel.style.cursor = 'pointer';
+canvasel.onclick = (e) => {
+    const rect = canvasel.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    zoomAnim(x, y);
 };
 
-// Add buttons for each quadrant
-const quadrants: Array<[string, 'tl' | 'tr' | 'bl' | 'br' | 'center']> = [
-    ['Top Left', 'tl'],
-    ['Top Right', 'tr'],
-    ['Bottom Left', 'bl'],
-    ['Bottom Right', 'br'],
-    ['Center', 'center']
-];
-
-quadrants.forEach(([label, quadrant]) => {
-    const btn = document.createElement("button");
-    btn.textContent = `Zoom ${label}`;
-    btn.onclick = () => {
-        zoomAnim(quadrant);
-        upd();
+// Remove the old buttons code and replace with a single reset button if desired
+const resetBtn = document.createElement("button");
+resetBtn.textContent = "Reset";
+resetBtn.onclick = () => {
+    img = {
+        w: 1,
+        h: 1,
+        data: new Float64Array([255, 255, 255, 255]),
     };
-    document.body.appendChild(btn);
-});
+    upd();
+};
+document.body.appendChild(resetBtn);
