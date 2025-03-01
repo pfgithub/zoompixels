@@ -1,12 +1,12 @@
 type Sub = [Pixel, Pixel, Pixel, Pixel];
 const cache = new Map<string, Sub>();
-function getPixels(x: number, y: number, zoom: number): Sub {
+function getPixels(x: bigint, y: bigint, zoom: number): Sub {
     const cachename = `${x},${y},${zoom}`;
     const pv = cache.get(cachename);
     if(pv != null) return pv;
     if(zoom < 0) throw new Error("oob");
     if(zoom == 0) {
-        if(x == 0 && y == 0) {
+        if(x == 0n && y == 0n) {
             const rv: Sub = [[255, 255, 255], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
             cache.set(cachename, rv);
             return rv;
@@ -15,9 +15,9 @@ function getPixels(x: number, y: number, zoom: number): Sub {
         cache.set(cachename, rv);
         return rv;
     }
-    const parent = getPixels((x / 2) |0, (y / 2) |0, zoom - 1);
-    const xm = x & 0b1;
-    const ym = y & 0b1;
+    const parent = getPixels((x / 2n) |0n, (y / 2n) |0n, zoom - 1);
+    const xm = Number(x & 0b1n);
+    const ym = Number(y & 0b1n);
     const rv: Sub = getSub(parent[(ym << 1) | xm]);
     cache.set(cachename, rv);
     return rv;
@@ -59,16 +59,16 @@ canvasholderel.style.width = display_w + "px";
 canvasholderel.style.height = display_h + "px";
 const ctx = canvasel.getContext("2d")!;
 
-let state_x = 0;
-let state_y = 0;
+let state_x = 0n;
+let state_y = 0n;
 let state_zoom = 1;
 let state_rez = 8;
 function zoom2(px, py) {
-    state_x *= 2;
-    state_y *= 2;
+    state_x *= 2n;
+    state_y *= 2n;
     state_zoom += 1;
-    if(px >= 0.5) state_x += 1;
-    if(py >= 0.5) state_y += 1;
+    if(px >= 0.5) state_x += 1n;
+    if(py >= 0.5) state_y += 1n;
     upd2();
 }
 function upd2() {
@@ -80,14 +80,14 @@ function upd2() {
     let rz = state_rez;
     while(rz > 1) {
         rz -= 1;
-        ofs_x *= 2;
-        ofs_y *= 2;
+        ofs_x *= 2n;
+        ofs_y *= 2n;
     }
     console.log(w, h, z);
     const raw = new Uint8ClampedArray(w * h * 4);
     for(let x = 0; x < w; x += 2) {
         for(let y = 0; y < h; y += 2) {
-            const pixels = getPixels(ofs_x + (x / 2), ofs_y + (y / 2), z);
+            const pixels = getPixels(ofs_x + BigInt(x / 2), ofs_y + BigInt(y / 2), z);
             raw[((y + 0) * w + (x + 0)) * 4 + 0] = pixels[0][0];
             raw[((y + 0) * w + (x + 0)) * 4 + 1] = pixels[0][1];
             raw[((y + 0) * w + (x + 0)) * 4 + 2] = pixels[0][2];
@@ -128,8 +128,8 @@ canvasel.onclick = (e) => {
 const resetBtn = document.createElement("button");
 resetBtn.textContent = "Reset";
 resetBtn.onclick = () => {
-    state_x = 0;
-    state_y = 0;
+    state_x = 0n;
+    state_y = 0n;
     state_zoom = 1;
     upd2();
 };
