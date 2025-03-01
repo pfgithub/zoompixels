@@ -15,6 +15,12 @@ function getPixels(x: bigint, y: bigint, zoom: number): Sub {
         cache.set(cachename, rv);
         return rv;
     }
+    if(x < 0 || y < 0) {
+        // because there's no @divFloor for bigint
+        const rv: Sub = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
+        cache.set(cachename, rv);
+        return rv;
+    }
     const parent = getPixels(x / 2n, y / 2n, zoom - 1);
     const xm = Number(x & 0b1n);
     const ym = Number(y & 0b1n);
@@ -59,38 +65,21 @@ canvasholderel.style.width = display_w + "px";
 canvasholderel.style.height = display_h + "px";
 const ctx = canvasel.getContext("2d")!;
 
-let state_shift_x = 0; 
-let state_shift_y = 0;
+let state_shift_x = 0n; 
+let state_shift_y = 0n;
 
-let state_x = 0n;
-let state_y = 0n;
 let state_zoom = 0;
 let state_rez = 8;
-function zoom2(px, py) {
-    state_x *= 2n;
-    state_y *= 2n;
-    state_zoom += 1;
-    if(px >= 0.5) state_x += 1n;
-    if(py >= 0.5) state_y += 1n;
-    upd2();
-}
 let cached_image: ImageData | null = null;
 let cached_image_key: string | null = null;
 function updImage() {
-    const key = `${state_x},${state_y},${state_zoom},${state_rez}`;
+    const key = `${state_zoom},${state_rez},${state_shift_x}${state_shift_y}`;
     if(key === cached_image_key) return cached_image!;
     const w = 2**state_rez;
     const h = 2**state_rez;
     const z = state_zoom + state_rez;
-    let ofs_x = state_x;
-    let ofs_y = state_y;
-    let rz = state_rez;
-    while(rz > 1) {
-        rz -= 1;
-        ofs_x *= 2n;
-        ofs_y *= 2n;
-    }
-    console.log(w, h, z);
+    const ofs_x = state_shift_x;
+    const ofs_y = state_shift_y;
     const raw = new Uint8ClampedArray(w * h * 4);
     for(let x = 0; x < w; x += 2) {
         for(let y = 0; y < h; y += 2) {
@@ -119,16 +108,11 @@ function updImage() {
     
 }
 function upd2() {
-    if(state_shift_x > display_w / 2) {
-        state_shift_x -= display_w;
-        state_x -= 1n;
-    }
-
     const img = updImage();
     canvasel.width = img.width;
     canvasel.height = img.height;
 
-    ctx.putImageData(img, state_shift_x, state_shift_y);
+    ctx.putImageData(img, 0, 0);
 }
 
 canvasholderel.appendChild(canvasel);
@@ -140,9 +124,9 @@ canvasel.style.cursor = 'pointer';
 const resetBtn = document.createElement("button");
 resetBtn.textContent = "Reset";
 resetBtn.onclick = () => {
-    state_x = 0n;
-    state_y = 0n;
     state_zoom = 0;
+    state_shift_x = 0n; 
+    state_shift_y = 0n;
     upd2();
 };
 document.body.appendChild(resetBtn);
@@ -152,8 +136,8 @@ zoom_out_btn.textContent = "Zoom Out";
 zoom_out_btn.onclick = () => {
     if(state_zoom == 0) return; // min
     state_zoom -= 1;
-    state_x /= 2n;
-    state_y /= 2n;
+    state_shift_x /= 2n;
+    state_shift_y /= 2n;
     upd2();
 };
 document.body.appendChild(zoom_out_btn);
@@ -163,10 +147,8 @@ for(const quad of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
     zoom_in_btn.textContent = "Zoom "+quad.join(",");
     zoom_in_btn.onclick = () => {
         state_zoom += 1;
-        state_x *= 2n;
-        state_y *= 2n;
-        state_x += BigInt(quad[0]);
-        state_y += BigInt(quad[1]);
+        state_shift_x *= 2n;
+        state_shift_y *= 2n;
         upd2();
     };
     document.body.appendChild(zoom_in_btn);
@@ -176,6 +158,8 @@ const incr_rez_btn = document.createElement("button");
 incr_rez_btn.textContent = "++";
 incr_rez_btn.onclick = () => {
     state_rez += 1;
+    state_shift_x *= 2n;
+    state_shift_y *= 2n;
     upd2();
 };
 document.body.appendChild(incr_rez_btn);
@@ -184,6 +168,8 @@ decr_rez_btn.textContent = "--";
 decr_rez_btn.onclick = () => {
     if(state_rez == 1) return;
     state_rez -= 1;
+    state_shift_x /= 2n;
+    state_shift_y /= 2n;
     upd2();
 };
 document.body.appendChild(decr_rez_btn);
@@ -203,17 +189,23 @@ canvasel.addEventListener('mousedown', (e) => {
 
 window.addEventListener('mousemove', (e) => {
     if (isDragging) {
-        // Calculate the movement delta
-        const deltaX = e.clientX - lastMouseX;
-        const deltaY = e.clientY - lastMouseY;
-        
-        // Update the stored position
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-        
-        // Update the shift values
-        state_shift_x += deltaX;
-        state_shift_y += deltaY;
+        const state_shift_scl = 2**(-state_rez+9);
+        while(e.clientX - lastMouseX >= state_shift_scl) {
+            lastMouseX += state_shift_scl;
+            state_shift_x -= 1n;
+        }
+        while(e.clientY - lastMouseY >= state_shift_scl) {
+            lastMouseY += state_shift_scl;
+            state_shift_y -= 1n;
+        }
+        while(e.clientX - lastMouseX <= -state_shift_scl) {
+            lastMouseX -= state_shift_scl;
+            state_shift_x += 1n;
+        }
+        while(e.clientY - lastMouseY <= -state_shift_scl) {
+            lastMouseY -= state_shift_scl;
+            state_shift_y += 1n;
+        }
         
         // Update the display
         upd2();

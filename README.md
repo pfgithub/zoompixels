@@ -9,3 +9,5 @@ need to be able to refocus eyes (bright spots get brighter, so we should be able
 bun a.html
 bun build a.html --outdir dist
 ```
+
+can use tilesets. each tile is made up of tiles and has a zoomed-out view and a zoomed-in view
