@@ -119,6 +119,11 @@ function updImage() {
     
 }
 function upd2() {
+    if(state_shift_x > display_w / 2) {
+        state_shift_x -= display_w;
+        state_x -= 1n;
+    }
+
     const img = updImage();
     canvasel.width = img.width;
     canvasel.height = img.height;
@@ -137,7 +142,7 @@ resetBtn.textContent = "Reset";
 resetBtn.onclick = () => {
     state_x = 0n;
     state_y = 0n;
-    state_zoom = 1;
+    state_zoom = 0;
     upd2();
 };
 document.body.appendChild(resetBtn);
