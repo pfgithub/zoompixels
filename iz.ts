@@ -59,6 +59,9 @@ canvasholderel.style.width = display_w + "px";
 canvasholderel.style.height = display_h + "px";
 const ctx = canvasel.getContext("2d")!;
 
+let state_shift_x = 0; 
+let state_shift_y = 0;
+
 let state_x = 0n;
 let state_y = 0n;
 let state_zoom = 0;
@@ -71,7 +74,11 @@ function zoom2(px, py) {
     if(py >= 0.5) state_y += 1n;
     upd2();
 }
-function upd2() {
+let cached_image: ImageData | null = null;
+let cached_image_key: string | null = null;
+function updImage() {
+    const key = `${state_x},${state_y},${state_zoom},${state_rez}`;
+    if(key === cached_image_key) return cached_image!;
     const w = 2**state_rez;
     const h = 2**state_rez;
     const z = state_zoom + state_rez;
@@ -106,23 +113,23 @@ function upd2() {
             raw[((y + 1) * w + (x + 1)) * 4 + 3] = 255;
         }
     }
-    canvasel.width = w;
-    canvasel.height = h;
-    const data = new ImageData(raw, w, h);
+    cached_image_key = key;
+    cached_image = new ImageData(raw, w, h);
+    return cached_image!;
+    
+}
+function upd2() {
+    const img = updImage();
+    canvasel.width = img.width;
+    canvasel.height = img.height;
 
-    ctx.putImageData(data, 0, 0);
+    ctx.putImageData(img, state_shift_x, state_shift_y);
 }
 
 canvasholderel.appendChild(canvasel);
 
 // Replace the quadrant buttons with canvas click handling
 canvasel.style.cursor = 'pointer';
-canvasel.onclick = (e) => {
-    const rect = canvasel.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    zoom2(x / rect.width, y / rect.height);
-};
 
 // Remove the old buttons code and replace with a single reset button if desired
 const resetBtn = document.createElement("button");
@@ -145,6 +152,20 @@ zoom_out_btn.onclick = () => {
     upd2();
 };
 document.body.appendChild(zoom_out_btn);
+
+for(const quad of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
+    const zoom_in_btn = document.createElement("button");
+    zoom_in_btn.textContent = "Zoom "+quad.join(",");
+    zoom_in_btn.onclick = () => {
+        state_zoom += 1;
+        state_x *= 2n;
+        state_y *= 2n;
+        state_x += BigInt(quad[0]);
+        state_y += BigInt(quad[1]);
+        upd2();
+    };
+    document.body.appendChild(zoom_in_btn);
+}
 
 const incr_rez_btn = document.createElement("button");
 incr_rez_btn.textContent = "++";
