@@ -43,14 +43,14 @@ function upd() {
     ctx.putImageData(data, 0, 0);
 }
 
-const zmbtn = document.createElement("button");
-zmbtn.textContent = "zoom";
-zmbtn.onclick = () => {
-    zoomAnim();
-    upd();
-};
-
-function zoomAnim() {
+function zoomAnim(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
+    canvasel.style.transformOrigin = {
+        'tl': '0 0',
+        'tr': '100% 0',
+        'bl': '0 100%',
+        'br': '100% 100%',
+        'center': '50% 50%',
+    }[quadrant];
     const anim = canvasel.animate([
         {transform: "scale(1)"},
         {transform: "scale(2)"},
@@ -59,23 +59,48 @@ function zoomAnim() {
         fill: "both",
     });
     anim.finished.then(() => {
-        zoom();
+        zoom(quadrant);
         anim.cancel();
         upd();
     });
 }
-function zoom() {
+
+function zoom(quadrant: 'tl' | 'tr' | 'bl' | 'br' | 'center') {
     const old = img.data;
     const old_w = img.w;
     const old_h = img.h;
     const new_w = old_w / 2;
     const new_h = old_h / 2;
     const final = new Float64Array(new_w * new_h * 4);
-    const offset_x = new_w / 2;
-    const offset_y = new_h / 2;
+    
+    // Calculate offsets based on quadrant
+    let offset_x: number, offset_y: number;
+    switch (quadrant) {
+        case 'tl':
+            offset_x = 0;
+            offset_y = 0;
+            break;
+        case 'tr':
+            offset_x = new_w;
+            offset_y = 0;
+            break;
+        case 'bl':
+            offset_x = 0;
+            offset_y = new_h;
+            break;
+        case 'br':
+            offset_x = new_w;
+            offset_y = new_h;
+            break;
+        case 'center':
+            offset_x = new_w / 2;
+            offset_y = new_h / 2;
+            break;
+    }
+
     final.fill(255);
-    for(let new_y = 0; new_y < old_w; new_y += 1) {
-        for(let new_x = 0; new_x < old_h; new_x += 1) {
+    for(let new_y = 0; new_y < new_h; new_y += 1) {
+        for(let new_x = 0; new_x < new_w; new_x += 1) {
             const old_y = new_y + offset_y;
             const old_x = new_x + offset_x;
             final[(new_y * new_w + new_x) * 4 + 0] = old[(old_y * old_w + old_x) * 4 + 0];
@@ -134,4 +159,30 @@ function ensureDivided() {
 upd();
 
 canvasholderel.appendChild(canvasel);
-document.body.appendChild(zmbtn);
+
+// Update the zoom button to use a specific quadrant (for example, center)
+const zmbtn = document.createElement("button");
+zmbtn.textContent = "zoom";
+zmbtn.onclick = () => {
+    zoomAnim('center');
+    upd();
+};
+
+// Add buttons for each quadrant
+const quadrants: Array<[string, 'tl' | 'tr' | 'bl' | 'br' | 'center']> = [
+    ['Top Left', 'tl'],
+    ['Top Right', 'tr'],
+    ['Bottom Left', 'bl'],
+    ['Bottom Right', 'br'],
+    ['Center', 'center']
+];
+
+quadrants.forEach(([label, quadrant]) => {
+    const btn = document.createElement("button");
+    btn.textContent = `Zoom ${label}`;
+    btn.onclick = () => {
+        zoomAnim(quadrant);
+        upd();
+    };
+    document.body.appendChild(btn);
+});
