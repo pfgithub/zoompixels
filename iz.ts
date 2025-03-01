@@ -184,3 +184,41 @@ decr_rez_btn.onclick = () => {
 document.body.appendChild(decr_rez_btn);
 
 upd2();
+
+// Add drag functionality to move the canvas around
+let isDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+canvasel.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        // Calculate the movement delta
+        const deltaX = e.clientX - lastMouseX;
+        const deltaY = e.clientY - lastMouseY;
+        
+        // Update the stored position
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        
+        // Update the shift values
+        state_shift_x += deltaX;
+        state_shift_y += deltaY;
+        
+        // Update the display
+        upd2();
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+window.addEventListener('mouseleave', () => {
+    isDragging = false;
+});
