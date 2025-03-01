@@ -4,7 +4,7 @@ function getPixels(x: bigint, y: bigint, zoom: number): Sub {
     const cachename = `${x},${y},${zoom}`;
     const pv = cache.get(cachename);
     if(pv != null) return pv;
-    if(zoom < 0) throw new Error("oob");
+    if(zoom < 0) throw new Error("todo zoom out");
     if(zoom == 0) {
         if(x == 0n && y == 0n) {
             const rv: Sub = [[255, 255, 255], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -15,7 +15,7 @@ function getPixels(x: bigint, y: bigint, zoom: number): Sub {
         cache.set(cachename, rv);
         return rv;
     }
-    const parent = getPixels((x / 2n) |0n, (y / 2n) |0n, zoom - 1);
+    const parent = getPixels(x / 2n, y / 2n, zoom - 1);
     const xm = Number(x & 0b1n);
     const ym = Number(y & 0b1n);
     const rv: Sub = getSub(parent[(ym << 1) | xm]);
@@ -61,7 +61,7 @@ const ctx = canvasel.getContext("2d")!;
 
 let state_x = 0n;
 let state_y = 0n;
-let state_zoom = 1;
+let state_zoom = 0;
 let state_rez = 8;
 function zoom2(px, py) {
     state_x *= 2n;
@@ -134,6 +134,17 @@ resetBtn.onclick = () => {
     upd2();
 };
 document.body.appendChild(resetBtn);
+
+const zoom_out_btn = document.createElement("button");
+zoom_out_btn.textContent = "Zoom Out";
+zoom_out_btn.onclick = () => {
+    if(state_zoom == 0) return; // min
+    state_zoom -= 1;
+    state_x /= 2n;
+    state_y /= 2n;
+    upd2();
+};
+document.body.appendChild(zoom_out_btn);
 
 const incr_rez_btn = document.createElement("button");
 incr_rez_btn.textContent = "++";
