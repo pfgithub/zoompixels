@@ -228,7 +228,7 @@ window.addEventListener('mousemove', (e) => {
     mpos_x = e.clientX;
     mpos_y = e.clientY;
     if (isDragging) {
-        const state_shift_scl = 2**(-state_rez+9);
+        const state_shift_scl = 2**(-state_rez+Math.log2(display_w)+1);
         while(e.clientX - lastMouseX >= state_shift_scl) {
             lastMouseX += state_shift_scl;
             state_shift_x -= 1n;
