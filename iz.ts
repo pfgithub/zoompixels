@@ -180,31 +180,74 @@ upd2();
 let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
+let didMove = false;
+
+let mpos_x = 0;
+let mpos_y = 0;
+
+canvasel.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    mpos_x = e.clientX;
+    mpos_y = e.clientY;
+    const canvas_pos = canvasel.getBoundingClientRect();
+    const x = (mpos_x - canvas_pos.left) / canvas_pos.width * (2**(state_rez - 1));
+    const y = (mpos_y - canvas_pos.top) / canvas_pos.height * (2**(state_rez - 1));
+    const tgt_x = state_shift_x + BigInt(x | 0);
+    const tgt_y = state_shift_y + BigInt(y | 0);
+
+    console.log(x, y, tgt_x, tgt_y, state_shift_x, state_shift_y);
+    state_shift_x = tgt_x;
+    state_shift_y = tgt_y;
+    if(e.deltaY < 0) {
+        state_zoom += 1;
+        state_shift_x *= 2n;
+        state_shift_y *= 2n;
+    }else if(state_zoom > 0) {
+        state_zoom -= 1;
+        state_shift_x /= 2n;
+        state_shift_y /= 2n;
+    } else {
+        // min zoom
+    }
+    state_shift_x -= BigInt(x |0);
+    state_shift_y -= BigInt(y |0);
+    upd2();
+
+    return false;
+}, false);
 
 canvasel.addEventListener('mousedown', (e) => {
     isDragging = true;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    didMove = false;
 });
 
 window.addEventListener('mousemove', (e) => {
+    mpos_x = e.clientX;
+    mpos_y = e.clientY;
     if (isDragging) {
         const state_shift_scl = 2**(-state_rez+9);
         while(e.clientX - lastMouseX >= state_shift_scl) {
             lastMouseX += state_shift_scl;
             state_shift_x -= 1n;
+            didMove = true;
         }
         while(e.clientY - lastMouseY >= state_shift_scl) {
             lastMouseY += state_shift_scl;
             state_shift_y -= 1n;
+            didMove = true;
         }
         while(e.clientX - lastMouseX <= -state_shift_scl) {
             lastMouseX -= state_shift_scl;
             state_shift_x += 1n;
+            didMove = true;
         }
         while(e.clientY - lastMouseY <= -state_shift_scl) {
             lastMouseY -= state_shift_scl;
             state_shift_y += 1n;
+            didMove = true;
         }
         
         // Update the display
@@ -212,7 +255,7 @@ window.addEventListener('mousemove', (e) => {
     }
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
     isDragging = false;
 });
 
