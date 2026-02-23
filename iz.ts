@@ -4,6 +4,14 @@ const cycle = [0.9, 0.8, 0.7, 0.6];
 // for perf, instead of bigint, we could provide the path to get here. so getPixels doesn't need to call getPixels on the parent.
 // and so we don't need huge bigints; instead, numbers are all relative to the current level
 // that's a good idea.
+
+type PixelPathElement = {
+    selection: number,
+    color: Sub,
+};
+type PixelPath = PixelPathElement[];
+// so much more annoying though
+
 function getPixels(x: bigint, y: bigint, zoom: number): Sub {
     const cachename = `${x},${y},${zoom}`;
     const pv = cache.get(cachename);
