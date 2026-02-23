@@ -7,10 +7,38 @@ const cycle = [0.9, 0.8, 0.7, 0.6];
 
 type PixelPathElement = {
     selection: number,
-    color: Sub,
+    sub: Sub,
+    hash: number,
 };
 type PixelPath = PixelPathElement[];
-// so much more annoying though
+// so much more annoying though. this isn't it, the path needs to be stored in our camera ig
+// and x/y will be relative to the current level
+// oh interesting and it doesn't even work. because what if you just keep zooming in the complete center.
+// there's four seperate pixel paths to get there.
+// maybe we could store four. that might work yeah.
+// when you zoom in, we update all four. sometimes two or three of them will merge from other ones
+function getPixelPath(x: bigint, y: bigint, zoom: number, res: PixelPathElement[]) {
+    if (zoom < 0) throw new Error("unreachable");
+    if (zoom === 0) {
+        res.push({selection: 0, sub: [[128, 128, 128], [0, 0, 0], [0, 0, 0], [0, 0, 0]], hash: 0});
+        return;
+    }
+    getPixelPath(x / 2n, y / 2n, zoom - 1, res);
+    const xm = Number(x & 0b1n);
+    const ym = Number(y & 0b1n);
+    subPixelPath(res, (ym << 1) | xm);
+}
+function subPixelPath(res: PixelPathElement[], selection: number) {
+    const parent = res[res.length - 1]!;
+    const color = parent.sub[selection]!;
+    const sub: Sub = getSub(color, cycle[res.length % cycle.length]);
+    res.push({selection, sub, hash: 0});
+}
+type Camera = {
+    x: number,
+    y: number,
+    path: PixelPath,
+};
 
 function getPixels(x: bigint, y: bigint, zoom: number): Sub {
     const cachename = `${x},${y},${zoom}`;
