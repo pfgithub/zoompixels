@@ -1,47 +1,98 @@
 type Sub = [Pixel, Pixel, Pixel, Pixel];
 const cache = new Map<string, Sub>();
+const cycle = [0.9, 0.8, 0.7, 0.6];
+// for perf, instead of bigint, we could provide the path to get here. so getPixels doesn't need to call getPixels on the parent.
+// and so we don't need huge bigints; instead, numbers are all relative to the current level
+// that's a good idea.
 function getPixels(x: bigint, y: bigint, zoom: number): Sub {
     const cachename = `${x},${y},${zoom}`;
     const pv = cache.get(cachename);
     if(pv != null) return pv;
     if(zoom < 0) throw new Error("todo zoom out");
-    if(zoom == 0) {
-        if(x == 0n && y == 0n) {
-            const rv: Sub = [[255, 255, 255], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
-            cache.set(cachename, rv);
-            return rv;
-        }
-        const rv: Sub = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
-        cache.set(cachename, rv);
-        return rv;
-    }
     if(x < 0 || y < 0) {
         // because there's no @divFloor for bigint
         const rv: Sub = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
         cache.set(cachename, rv);
         return rv;
     }
+    if (zoom === 0) {
+        const rv: Sub = [[128, 128, 128], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
+        cache.set(cachename, rv);
+        return rv;
+    }
     const parent = getPixels(x / 2n, y / 2n, zoom - 1);
     const xm = Number(x & 0b1n);
     const ym = Number(y & 0b1n);
-    const rv: Sub = getSub(parent[(ym << 1) | xm]);
+    const color = parent[(ym << 1) | xm];
+    const rv: Sub = getSub(color, cycle[zoom % cycle.length]);
     cache.set(cachename, rv);
     return rv;
 }
 globalThis.getPixels = getPixels;
 
 type Pixel = [number, number, number];
-function getSubOne(parent: number): [number, number, number, number] {
+function getSubOne2(parent: number): [number, number, number, number] {
     // random but average is equal to parent
     const [a, b, c, d] = [Math.random(), Math.random(), Math.random(), Math.random()];
     const avg = (a + b + c + d) / 4;
     const factor = parent / avg;
     return [a * factor, b * factor, c * factor, d * factor];
 }
-function getSub(parent: Pixel): [Pixel, Pixel, Pixel, Pixel] {
-    const [a0, b0, c0, d0] = getSubOne(parent[0]);
-    const [a1, b1, c1, d1] = getSubOne(parent[1]);
-    const [a2, b2, c2, d2] = getSubOne(parent[2]);
+function getSubOne(n, m) {
+    return generateControlledRandomNumbers(n, m);
+}
+function generateControlledRandomNumbers(n, tightness) {
+    n /= 255;
+  const count = 4;
+  const targetSum = n * count;
+  let currentSum = targetSum;
+  const rawRandoms = [];
+
+  // 2. Generate Base Random Numbers (Tightness = 0 scenario)
+  // We use the same look-ahead logic to ensure the random set is valid.
+  for (let i = 0; i < count - 1; i++) {
+    const remainingSlots = count - (i + 1);
+    
+    // Calculate safe bounds to ensure future numbers can still sum to total
+    const min = Math.max(0, currentSum - remainingSlots);
+    const max = Math.min(1, currentSum);
+
+    const val = Math.random() * (max - min) + min;
+    
+    rawRandoms.push(val);
+    currentSum -= val;
+  }
+  
+  // Add the final remainder, clamped to 0-1 to fix floating point dust
+  rawRandoms.push(Math.max(0, Math.min(1, currentSum)));
+
+  // 3. Apply Tightness (Interpolation)
+  // Formula: Result = Target + (Random - Target) * (1 - tightness)
+  // If tightness is 1, we get Target. If 0, we get Random.
+  const varianceFactor = 1 - tightness;
+  
+  const results = rawRandoms.map(r => {
+    return (n + (r - n) * varianceFactor) * 255;
+  });
+
+  // 4. Shuffle to remove generation bias
+  return shuffleArray(results);
+}
+
+// Helper: Fisher-Yates Shuffle
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+
+function getSub(parent: Pixel, m: number): [Pixel, Pixel, Pixel, Pixel] {
+    const [a0, b0, c0, d0] = getSubOne(parent[0], m);
+    const [a1, b1, c1, d1] = getSubOne(parent[1], m);
+    const [a2, b2, c2, d2] = getSubOne(parent[2], m);
     return [
         [a0, a1, a2],
         [b0, b1, b2],
